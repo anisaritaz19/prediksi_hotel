@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="hero"><div class="wrap">
+  <h1>Akankah reservasi ini dibatalkan?</h1>
+  <p>Isi detail reservasi, model <b>Decision Tree (pruned)</b> memprediksi risiko pembatalan dan menjelaskan <i>jalur keputusannya</i> langkah demi langkah.</p>
+  <div class="chips">Coba contoh:
+    <button type="button" class="chip" data-p="berisiko">🔴 Berisiko tinggi</button>
+    <button type="button" class="chip" data-p="ragu">🟠 Meragukan</button>
+    <button type="button" class="chip" data-p="aman">🟢 Kemungkinan aman</button>
+    <button type="button" class="chip ghost" data-p="default">↺ Reset</button>
+  </div>
+</div></section>
+
+<main class="wrap grid">
+  <form id="f" class="card form" autocomplete="off">
+    {% for title, fields in groups %}
+    <fieldset><legend>{{ title }}</legend><div class="fields">
+      {% for c in fields %}
+      <label>{{ labels[c] }}
+        {% if c in cat %}
+          <select name="{{ c }}">
+            {% for o in (months if c=='arrival_date_month' else cat[c]) %}<option value="{{ o }}" {{ 'selected' if o==defaults[c] }}>{{ o }}</option>{% endfor %}
+          </select>
+        {% else %}
+          <input type="number" name="{{ c }}" min="0" step="{{ '0.01' if c=='adr' else 1 }}" value="{{ defaults[c] }}" required>
+        {% endif %}
+      </label>
+      {% endfor %}
+    </div></fieldset>
+    {% endfor %}
+    <button class="btn" id="go" type="submit">Prediksi Sekarang →</button>
+  </form>
+
+  <aside class="side">
+    <div class="card result empty" id="res">
+      <div class="placeholder">📊<p>Hasil prediksi akan tampil di sini.</p></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+const PRESETS = {{ presets|tojson }}; const DEF = {{ defaults|tojson }}; PRESETS.default = DEF;
+const f = document.getElementById('f'), res = document.getElementById('res');
+document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+  const p = PRESETS[b.dataset.p]; for (const k in p) if (f.elements[k]) f.elements[k].value = p[k];
+  f.requestSubmit();
+});
+const pct = x => (x*100).toFixed(1) + '%';
+f.onsubmit = async e => {
+  e.preventDefault(); const btn = document.getElementById('go'); btn.disabled = true; btn.textContent = 'Menghitung…';
+  const body = Object.fromEntries(new FormData(f).entries());
+  try {
+    const r = await fetch('/api/predict', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const d = await r.json();
+    if (!d.ok) { res.className = 'card result err'; res.innerHTML = `<div class="placeholder">⚠️<p>${d.error}</p></div>`; return; }
+    const cls = d.prob_cancel >= .65 ? 'hi' : d.prob_cancel >= .4 ? 'mid' : 'lo';
+    const C = 2*Math.PI*52, off = C*(1-d.prob_cancel);
+    res.className = 'card result ' + cls;
+    res.innerHTML = `
+      <div class="verdict">${d.label === 'BATAL' ? '❌ Diprediksi BATAL' : '✅ Diprediksi TIDAK BATAL'}</div>
+      <div class="gauge"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="bg"/>
+        <circle cx="60" cy="60" r="52" class="fg" stroke-dasharray="${C}" stroke-dashoffset="${off}" transform="rotate(-90 60 60)"/></svg>
+        <div class="gv"><b>${(d.prob_cancel*100).toFixed(0)}%</b><span>risiko batal</span></div></div>
+      <p class="lvl">Tingkat risiko: <b>${d.level.toUpperCase()}</b> · peluang tidak batal ${pct(d.prob_keep)}</p>
+      <h3>🌳 Jalur keputusan pohon</h3>
+      <ol class="path">${d.path.map(s => `<li>${s.text}<em>${s.samples.toLocaleString()} data</em></li>`).join('')}
+        <li class="leaf">Daun akhir: ${d.leaf.samples.toLocaleString()} data latih, ${pct(d.leaf.p_cancel)} di antaranya batal</li></ol>
+      <div class="cmp"><b>Pembanding – Model A (tanpa pruning):</b> ${d.model_a.label} (${pct(d.model_a.prob_cancel)})<br>
+        <small>Model A cenderung terlalu yakin (probabilitas ekstrem) karena menghafal data latih.</small></div>`;
+  } catch (err) { res.className='card result err'; res.innerHTML = '<div class="placeholder">⚠️<p>Gagal menghubungi server.</p></div>'; }
+  finally { btn.disabled = false; btn.textContent = 'Prediksi Sekarang →'; if (window.innerWidth < 900) res.scrollIntoView({behavior:'smooth'}); }
+};
+</script>
+{% endblock %}

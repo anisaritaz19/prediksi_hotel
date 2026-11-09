@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HotelGuard · Prediksi Pembatalan Reservasi</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="/"><span class="logo">🏨</span> HotelGuard <small>Decision Tree</small></a>
+    <nav>
+      <a href="/" class="{{ 'on' if page=='home' }}">Prediksi</a>
+      <a href="/model" class="{{ 'on' if page=='model' }}">Analisis Model</a>
+    </nav>
+  </div>
+</header>
+{% block body %}{% endblock %}
+<footer><div class="wrap">TA-05 Pembelajaran Mesin · Dataset: Hotel Booking Demand (Kaggle) · Model: DecisionTreeClassifier (scikit-learn)</div></footer>
+</body></html>

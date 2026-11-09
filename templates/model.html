@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="hero small"><div class="wrap"><h1>Analisis Model</h1>
+<p>Perbandingan Model A (tanpa pruning) dan Model B (pruned) pada {{ '{:,}'.format(m.n_rows_clean) }} reservasi bersih.</p></div></section>
+<main class="wrap">
+  <div class="kpis">
+    {% for k in ['A','B'] %}{% set x = m[k] %}
+    <div class="card kpi {{ 'a' if k=='A' else 'b' }}"><h3>{{ x.name }}</h3>
+      <div class="rows">
+        <div><span>Kedalaman</span><b>{{ x.depth }}</b></div><div><span>Jumlah daun</span><b>{{ '{:,}'.format(x.leaves) }}</b></div>
+        <div><span>Akurasi latih</span><b>{{ '%.1f'|format(x.train_acc*100) }}%</b></div>
+        <div><span>Akurasi uji</span><b>{{ '%.1f'|format(x.test_acc*100) }}%</b></div>
+        <div><span>Gap (latih − uji)</span><b class="{{ 'bad' if (x.train_acc-x.test_acc)>0.05 else 'good' }}">{{ '%.1f'|format((x.train_acc-x.test_acc)*100) }} poin</b></div>
+        <div><span>AUC</span><b>{{ '%.3f'|format(x.auc) }}</b></div>
+        <div><span>Recall (Batal)</span><b>{{ '%.2f'|format(x.recall_1) }}</b></div><div><span>Precision (Batal)</span><b>{{ '%.2f'|format(x.precision_1) }}</b></div>
+      </div></div>
+    {% endfor %}
+  </div>
+  <div class="card note">💡 <b>Temuan overfitting:</b> Model A mencapai akurasi latih {{ '%.1f'|format(m.A.train_acc*100) }}% tetapi hanya {{ '%.1f'|format(m.A.test_acc*100) }}% pada data uji
+  (selisih {{ '%.1f'|format((m.A.train_acc-m.A.test_acc)*100) }} poin) — pohon menghafal data latih. Model B hampir tanpa selisih ({{ '%.1f'|format((m.B.train_acc-m.B.test_acc)*100) }} poin), jauh lebih sederhana ({{ m.B.leaves }} daun vs {{ '{:,}'.format(m.A.leaves) }}) dan dapat dibaca manusia — karena itu dipakai pada aplikasi.</div>
+  <div class="imgs">
+    <figure class="card"><img src="/static/img/07_overfitting_curve.png"><figcaption>Kurva akurasi latih vs uji terhadap max_depth</figcaption></figure>
+    <figure class="card"><img src="/static/img/08_confusion_matrix.png"><figcaption>Confusion matrix Model A & B</figcaption></figure>
+    <figure class="card"><img src="/static/img/11_feature_importance.png"><figcaption>Feature importance Model B</figcaption></figure>
+    <figure class="card"><img src="/static/img/09_roc.png"><figcaption>Kurva ROC</figcaption></figure>
+    <figure class="card wide"><img src="/static/img/10_tree_modelB.png"><figcaption>Pohon keputusan Model B (klik kanan → buka gambar untuk memperbesar)</figcaption></figure>
+  </div>
+</main>
+{% endblock %}
